@@ -23,8 +23,8 @@ API_ID = 38117391
 API_HASH = 'd6c8c66bf42e53f2c0ef54a6d11c6378'
 
 client = TelegramClient('sesion_carlos', API_ID, API_HASH)
-CANAL = 'SubastasVE'
-ultimos_mensajes = []
+# Cambiamos temporalmente al grupo de prueba
+CANAL = 'ComunidadBunkerKV'
 
 def enviar_mensaje(texto):
     url = f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage'
@@ -37,13 +37,8 @@ def enviar_mensaje(texto):
 @client.on(events.NewMessage(chats=CANAL))
 async def procesar_anuncio(event):
     texto = event.text
-    texto_lower = texto.lower()
-    palabras_clave = ['abierto', 'intervencion', 'menudeo', 'disponible', 'activo']
-    if any(p in texto_lower for p in palabras_clave):
-        ultimos_mensajes.append(texto)
-        if len(ultimos_mensajes) > 10:
-            ultimos_mensajes.pop(0)
-        enviar_mensaje(f"🚨 **NUEVA INTERVENCIÓN DETECTADA** 🚨\n\n{texto}")
+    # Notificará cualquier mensaje que escriban en el grupo para verificar la prueba
+    enviar_mensaje(f"🟡 **MENSAJE DETECTADO EN BÚNKER** 🟡\n\n{texto}")
 
 async def main():
     # 1. Iniciamos el servidor web de Flask en un hilo independiente
