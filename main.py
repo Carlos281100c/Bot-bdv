@@ -10,7 +10,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "¡Bot activo probando en grupo concurrido!" 
+    return "¡Bot activo probando en E_positivo!"
 
 def run_web():
     port = int(os.environ.get("PORT", 10000))
@@ -24,8 +24,8 @@ API_HASH = 'd6c8c66bf42e53f2c0ef54a6d11c6378'
 
 client = TelegramClient('sesion_carlos', API_ID, API_HASH)
 
-# Grupo público y muy activo para la prueba
-CANAL = 'TelethonChat'
+# Nuevo grupo de prueba
+CANAL = 'E_positivo'
 
 def enviar_mensaje(texto):
     url = f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage'
@@ -39,7 +39,7 @@ def enviar_mensaje(texto):
 async def procesar_anuncio(event):
     texto = event.text
     # Reenvía los mensajes del grupo a tu Telegram privado
-    enviar_mensaje(f"⚡ **PRUEBA EN VIVO (TelethonChat)** ⚡\n\n{texto}")
+    enviar_mensaje(f"⚡ **PRUEBA EN VIVO (E_positivo)** ⚡\n\n{texto}")
 
 async def main():
     web_thread = Thread(target=run_web)
@@ -47,7 +47,7 @@ async def main():
     web_thread.start()
 
     await client.start()
-    print("Escuchando el grupo activo TelethonChat...")
+    print("Escuchando el grupo E_positivo...")
     await client.run_until_disconnected()
 
 if __name__ == '__main__':
