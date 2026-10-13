@@ -24,8 +24,8 @@ API_HASH = 'd6c8c66bf42e53f2c0ef54a6d11c6378'
 
 client = TelegramClient('sesion_carlos', API_ID, API_HASH)
 
-# Nuevo grupo de prueba
-CANAL = 'E_positivo'
+# Guardaremos el ID numérico del grupo aquí una vez que conecte
+target_chat_id = None
 
 def enviar_mensaje(texto):
     url = f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage'
@@ -35,19 +35,32 @@ def enviar_mensaje(texto):
     except Exception as e:
         print(f'Error: {e}')
 
-@client.on(events.NewMessage(chats=CANAL))
+@client.on(events.NewMessage)
 async def procesar_anuncio(event):
-    texto = event.text
-    # Reenvía los mensajes del grupo a tu Telegram privado
-    enviar_mensaje(f"⚡ **PRUEBA EN VIVO (E_positivo)** ⚡\n\n{texto}")
+    global target_chat_id
+    # Verificamos si el mensaje viene exactamente del grupo E_positivo
+    if target_chat_id and event.chat_id == target_chat_id:
+        texto = event.text
+        enviar_mensaje(f"⚡ **PRUEBA EN VIVO (E_positivo)** ⚡\n\n{texto}")
 
 async def main():
+    global target_chat_id
     web_thread = Thread(target=run_web)
     web_thread.daemon = True
     web_thread.start()
 
+    # 1. Iniciamos sesión en Telethon
     await client.start()
-    print("Escuchando el grupo E_positivo...")
+    print("Escuchador iniciado en la nube...")
+
+    # 2. Buscamos y resolvemos el grupo de forma segura ya estando conectados
+    try:
+        entity = await client.get_entity('E_positivo')
+        target_chat_id = entity.id
+        print(f"¡Grupo E_positivo conectado exitosamente con ID: {target_chat_id}!")
+    except Exception as e:
+        print(f"Error al buscar el grupo E_positivo: {e}")
+
     await client.run_until_disconnected()
 
 if __name__ == '__main__':
