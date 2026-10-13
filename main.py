@@ -10,7 +10,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "¡Bot activo probando en grupo concurrido!"
+    return "¡Bot activo probando en grupo concurrido!" 
 
 def run_web():
     port = int(os.environ.get("PORT", 10000))
