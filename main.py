@@ -1,6 +1,6 @@
 import os
 import asyncio
-import aiohttp
+import requests
 from threading import Thread
 from flask import Flask
 from telethon import TelegramClient, events
@@ -10,7 +10,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "¡Bot ultra-rápido activo!"
+    return "¡Bot activo y rápido!"
 
 def run_web():
     port = int(os.environ.get("PORT", 10000))
@@ -24,19 +24,16 @@ API_HASH = 'd6c8c66bf42e53f2c0ef54a6d11c6378'
 
 client = TelegramClient('sesion_carlos', API_ID, API_HASH)
 
-# Canales o grupos a monitorear
-GRUPOS_MONITOR = ['E_positivo', 'SubastasVE']
+# Lista completa de canales y grupos a monitorear
+GRUPOS_MONITOR = ['E_positivo', 'SubastasVE', 'subastasBCV']
 
-# Función asíncrona ultrarrápida para enviar el mensaje a Telegram
-async def enviar_mensaje_rapido(texto):
+def enviar_mensaje_sync(texto):
     url = f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage'
     payload = {'chat_id': CHAT_ID, 'text': texto, 'parse_mode': 'Markdown'}
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.post(url, json=payload) as response:
-                pass # Envío instantáneo sin bloquear el hilo
-        except Exception as e:
-            print(f'Error en envío rápido: {e}')
+    try:
+        requests.post(url, json=payload, timeout=5)
+    except Exception as e:
+        print(f'Error al enviar: {e}')
 
 @client.on(events.NewMessage)
 async def procesar_mensaje(event):
@@ -45,10 +42,11 @@ async def procesar_mensaje(event):
         username_chat = getattr(chat, 'username', None)
         titulo_chat = getattr(chat, 'title', 'Chat')
 
-        if username_chat and username_chat in GRUPOS_MONITOR:
+        # Compara sin importar mayúsculas/minúsculas
+        if username_chat and any(username_chat.lower() == g.lower() for g in GRUPOS_MONITOR):
             texto = event.text or "[Multimedia/Sin texto]"
-            # Dispara la alerta de inmediato de forma asíncrona
-            asyncio.create_task(enviar_mensaje_rapido(f"⚡ **ALERTA INMEDIATA [{titulo_chat}]** ⚡\n\n{texto}"))
+            # Envía de forma inmediata sin bloquear el flujo principal
+            await asyncio.to_thread(enviar_mensaje_sync, f"⚡ **ALERTA [{titulo_chat}]** ⚡\n\n{texto}")
             
     except Exception as e:
         print(f"Error: {e}")
@@ -61,7 +59,7 @@ async def main():
 
     # 2. Iniciar cliente de Telegram
     await client.start()
-    print("Bot optimizado y escuchando a máxima velocidad...")
+    print("Bot activo monitoreando múltiples grupos a máxima velocidad...")
     
     await client.run_until_disconnected()
 
