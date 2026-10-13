@@ -1,7 +1,22 @@
+import os
 import asyncio
 import requests
+from threading import Thread
+from flask import Flask
 from telethon import TelegramClient, events
 
+# --- Configuración de Flask para el puerto web de Render ---
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "¡El bot de Telethon está activo y funcionando en Render!"
+
+def run_web():
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
+
+# --- Configuración de tu Bot / Telethon ---
 TELEGRAM_TOKEN = '8338001754:AAF3y73oDviZ2MaPa0YX9Xm06IguL8RFTys'
 CHAT_ID = '6257969943'
 API_ID = 38117391
@@ -31,8 +46,15 @@ async def procesar_anuncio(event):
         enviar_mensaje(f"🚨 **NUEVA INTERVENCIÓN DETECTADA** 🚨\n\n{texto}")
 
 async def main():
+    # 1. Iniciamos el servidor web de Flask en un hilo independiente
+    web_thread = Thread(target=run_web)
+    web_thread.daemon = True
+    web_thread.start()
+    print("Servidor web iniciado en segundo plano para cumplir con Render.")
+
+    # 2. Iniciamos Telethon en el hilo principal
     await client.start()
-    print("Escuchador iniciado en la nube...")
+    print("Escuchador de Telegram iniciado en la nube...")
     await client.run_until_disconnected()
 
 if __name__ == '__main__':
