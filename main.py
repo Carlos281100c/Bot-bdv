@@ -2,7 +2,7 @@ import os
 import asyncio
 import requests
 from threading import Thread
-from Flask import Flask
+from flask import Flask
 from telethon import TelegramClient, events
 
 # --- Configuración de Flask para Render ---
@@ -78,17 +78,14 @@ async def main():
     # 4. Resolver la comunidad privada mediante el enlace de invitación
     try:
         from telethon.tl.functions.messages import ImportChatInviteRequest
-        # Extraemos el hash del enlace de invitación (lo que va después de '+')
         invite_hash = ENLACE_INVITACION.split('+')[-1]
         
-        # Intentamos unirnos o obtener la entidad del chat privado
         try:
             updates = await client(ImportChatInviteRequest(invite_hash))
             chat_privado = updates.chats[0]
             chats_permitidos_ids.add(chat_privado.id)
             print(f"¡Comunidad privada agregada exitosamente! (ID: {chat_privado.id})")
         except Exception:
-            # Si ya estabas unido previamente, buscamos la entidad directamente por el enlace completo
             entity_privada = await client.get_entity(ENLACE_INVITACION)
             chats_permitidos_ids.add(entity_privada.id)
             print(f"¡Comunidad privada ya vinculada previamente! (ID: {entity_privada.id})")
