@@ -10,7 +10,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "¡Bot activo multi-grupo y comunidad!"
+    return "¡Bot activo y depurando chats!"
 
 def run_web():
     port = int(os.environ.get("PORT", 10000))
@@ -24,12 +24,9 @@ API_HASH = 'd6c8c66bf42e53f2c0ef54a6d11c6378'
 
 client = TelegramClient('sesion_carlos', API_ID, API_HASH)
 
-# Canales públicos por su username
 GRUPOS_USERNAMES = ['E_positivo', 'SubastasVE', 'subastasBCV']
-# Enlace de invitación para la comunidad privada
 ENLACE_INVITACION = 'https://t.me/+ad6dNv0My50yZjIx'
 
-# Almacenará los IDs numéricos de todos los chats permitidos
 chats_permitidos_ids = set()
 
 def enviar_mensaje_sync(texto):
@@ -43,7 +40,10 @@ def enviar_mensaje_sync(texto):
 @client.on(events.NewMessage)
 async def procesar_mensaje(event):
     try:
-        # Si el chat_id está dentro de nuestra lista dinámica permitida, procesamos
+        # Imprimimos CADA chat que emita un mensaje para ver su ID en vivo en los logs de Render
+        print(f"Mensaje detectado -> chat_id: {event.chat_id} | texto: {event.text}")
+
+        # Si coincide con nuestros IDs permitidos, o si queremos forzar la captura temporalmente para probar:
         if event.chat_id in chats_permitidos_ids:
             chat = await event.get_chat()
             titulo_chat = getattr(chat, 'title', 'Comunidad/Grupo')
@@ -57,43 +57,38 @@ async def procesar_mensaje(event):
 async def main():
     global chats_permitidos_ids
 
-    # 1. Iniciar servidor Flask en segundo plano
     web_thread = Thread(target=run_web)
     web_thread.daemon = True
     web_thread.start()
 
-    # 2. Iniciar cliente de Telegram
     await client.start()
-    print("Cliente de Telegram conectado. Resolviendo canales...")
+    print("Cliente conectado. Resolviendo entidades...")
 
-    # 3. Resolver los canales públicos por username
+    # Resolver canales públicos
     for username in GRUPOS_USERNAMES:
         try:
             entity = await client.get_entity(username)
             chats_permitidos_ids.add(entity.id)
-            print(f"Canal público agregado: {username} (ID: {entity.id})")
+            print(f"Público OK -> {username} ID: {entity.id}")
         except Exception as e:
-            print(f"No se pudo resolver el canal {username}: {e}")
+            print(f"Error en {username}: {e}")
 
-    # 4. Resolver la comunidad privada mediante el enlace de invitación
+    # Resolver comunidad privada por enlace
     try:
-        from telethon.tl.functions.messages import ImportChatInviteRequest
-        invite_hash = ENLACE_INVITACION.split('+')[-1]
-        
-        try:
-            updates = await client(ImportChatInviteRequest(invite_hash))
-            chat_privado = updates.chats[0]
-            chats_permitidos_ids.add(chat_privado.id)
-            print(f"¡Comunidad privada agregada exitosamente! (ID: {chat_privado.id})")
-        except Exception:
-            entity_privada = await client.get_entity(ENLACE_INVITACION)
-            chats_permitidos_ids.add(entity_privada.id)
-            print(f"¡Comunidad privada ya vinculada previamente! (ID: {entity_privada.id})")
-            
+        entity_privada = await client.get_entity(ENLACE_INVITACION)
+        chats_permitidos_ids.add(entity_privada.id)
+        print(f"¡Comunidad Privada OK! ID: {entity_privada.id}")
     except Exception as e:
-        print(f"Error al procesar el enlace de invitación privado: {e}")
+        print(f"No se pudo resolver el enlace privado directamente: {e}")
+        # Plan B: Buscamos en las diálogos recientes en los que participas
+        async for dialog in client.iter_dialogs(limit=30):
+            if dialog.is_group or dialog.is_channel:
+                # Añadimos los chats activos temporalmente para mapearlos
+                chats_permitidos_ids.add(dialog.id)
+                print(f"Chat añadido desde diálogos: {dialog.name} (ID: {dialog.id})")
 
-    print("¡Sistema 100% operativo escuchando todas las fuentes!")
+    print(f"IDs permitidos finales cargados: {chats_permitidos_ids}")
+    print("¡Escuchando eventos en tiempo real!")
     await client.run_until_disconnected()
 
 if __name__ == '__main__':
