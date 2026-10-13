@@ -1,1 +1,39 @@
-python3 -c "import pathlib; pathlib.Path('escuchador.py').write_text('''import requests\nimport asyncio\nfrom telethon import TelegramClient, events\n\nTELEGRAM_TOKEN = '8338001754:AAF3y73oDviZ2MaPa0YX9Xm06IguL8RFTys'\nCHAT_ID = '6257969943'\nAPI_ID = 38117391\nAPI_HASH = 'd6c8c66bf42e53f2c0ef54a6d11c6378'\n\nclient = TelegramClient('sesion_carlos', API_ID, API_HASH)\nCANAL = 'SubastasVE'\nultimos_mensajes = []\n\ndef enviar_mensaje(texto):\n    url = f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage'\n    payload = {'chat_id': CHAT_ID, 'text': texto, 'parse_mode': 'Markdown'}\n    try:\n        requests.post(url, json=payload)\n    except Exception as e:\n        print(f'Error: {e}')\n\n@client.on(events.NewMessage(chats=CANAL))\nasync def procesar_anuncio(event):\n    texto = event.text\n    texto_lower = texto.lower()\n    palabras_clave = ['abierto', 'intervencion', 'menudeo', 'disponible', 'activo']\n    if any(p in texto_lower for p in palabras_clave):\n        ultimos_mensajes.append(texto)\n        if len(ultimos_mensajes) > 5:\n            ultimos_mensajes.pop(0)\n        enviar_mensaje(f'🚨 *¡AVISO DETECTADO!* 🚨\\n\\n{texto}\\n\\n_Monitoreado por tu sistema personal_')\n\nasync def revisar_comandos_bot():\n    offset = 0\n    while True:\n        try:\n            # Reducimos el timeout a 1 para respuestas ultra rápidas\n            url = f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/getUpdates?offset={offset}&timeout=1'\n            response = requests.get(url).json()\n            if response.get('ok'):\n                for update in response.get('result', []):\n                    offset = update['update_id'] + 1\n                    msg = update.get('message')\n                    if msg and str(msg['chat']['id']) == CHAT_ID:\n                        texto_cmd = msg.get('text', '').lower()\n                        if 'historial' in texto_cmd:\n                            if ultimos_mensajes:\n                                hist = '\\n\\n---\\n\\n'.join(ultimos_mensajes)\n                                enviar_mensaje(f'📋 *Últimos avisos guardados:*\\n\\n{hist}')\n                            else:\n                                enviar_mensaje('⚠️ Todavía no hay avisos almacenados en la memoria reciente.')\n                        elif 'simular' in texto_cmd:\n                            aviso_falso = '🚨 [PRUEBA] Banco Central anuncia intervención cambiaria oficial y menudeo disponible hoy.'\n                            ultimos_mensajes.append(aviso_falso)\n                            enviar_mensaje(f'🧪 *Simulación ejecutada con éxito:*\\n\\n{aviso_falso}')\n                        else:\n                            enviar_mensaje('🤖 *¡Sistema activo!* Escribe *historial* para ver los avisos o *simular* para hacer una prueba.')\n        except Exception:\n            pass\n        # Pausa casi imperceptible de 0.5 segundos\n        await asyncio.sleep(0.5)\n\ndef main():\n    print('🤖 Sistema ultra-rápido iniciado...')\n    client.start()\n    print('✅ ¡Conectado!')\n    client.loop.create_task(revisar_comandos_bot())\n    client.run_until_disconnected()\n\nif __name__ == '__main__':\n    main()\n''')"
+import asyncio
+import requests
+from telethon import TelegramClient, events
+
+TELEGRAM_TOKEN = '8338001754:AAF3y73oDviZ2MaPa0YX9Xm06IguL8RFTys'
+CHAT_ID = '6257969943'
+API_ID = 38117391
+API_HASH = 'd6c8c66bf42e53f2c0ef54a6d11c6378'
+
+client = TelegramClient('sesion_carlos', API_ID, API_HASH)
+CANAL = 'SubastasVE'
+ultimos_mensajes = []
+
+def enviar_mensaje(texto):
+    url = f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage'
+    payload = {'chat_id': CHAT_ID, 'text': texto, 'parse_mode': 'Markdown'}
+    try:
+        requests.post(url, json=payload)
+    except Exception as e:
+        print(f'Error: {e}')
+
+@client.on(events.NewMessage(chats=CANAL))
+async def procesar_anuncio(event):
+    texto = event.text
+    texto_lower = texto.lower()
+    palabras_clave = ['abierto', 'intervencion', 'menudeo', 'disponible', 'activo']
+    if any(p in texto_lower for p in palabras_clave):
+        ultimos_mensajes.append(texto)
+        if len(ultimos_mensajes) > 10:
+            ultimos_mensajes.pop(0)
+        enviar_mensaje(f"🚨 **NUEVA INTERVENCIÓN DETECTADA** 🚨\n\n{texto}")
+
+async def main():
+    await client.start()
+    print("Escuchador iniciado en la nube...")
+    await client.run_until_disconnected()
+
+if __name__ == '__main__':
+    asyncio.run(main())
