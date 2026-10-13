@@ -10,7 +10,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "¡Bot activo y depurando chats!"
+    return "¡Bot ultra-rápido activo!"
 
 def run_web():
     port = int(os.environ.get("PORT", 10000))
@@ -24,10 +24,8 @@ API_HASH = 'd6c8c66bf42e53f2c0ef54a6d11c6378'
 
 client = TelegramClient('sesion_carlos', API_ID, API_HASH)
 
-GRUPOS_USERNAMES = ['E_positivo', 'SubastasVE', 'subastasBCV']
-ENLACE_INVITACION = 'https://t.me/+ad6dNv0My50yZjIx'
-
-chats_permitidos_ids = set()
+# Lista de canales públicos que deseas monitorear por su username
+GRUPOS_MONITOR = ['E_positivo', 'SubastasVE', 'subastasBCV']
 
 def enviar_mensaje_sync(texto):
     url = f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage'
@@ -40,55 +38,38 @@ def enviar_mensaje_sync(texto):
 @client.on(events.NewMessage)
 async def procesar_mensaje(event):
     try:
-        # Imprimimos CADA chat que emita un mensaje para ver su ID en vivo en los logs de Render
-        print(f"Mensaje detectado -> chat_id: {event.chat_id} | texto: {event.text}")
+        # Obtenemos los datos del chat en tiempo real cuando llega un mensaje
+        chat = await event.get_chat()
+        username_chat = getattr(chat, 'username', None)
+        titulo_chat = getattr(chat, 'title', 'Comunidad/Grupo')
+        
+        # Imprimimos en los logs de Render para depurar en vivo
+        print(f"Mensaje entrante de: {titulo_chat} (@{username_chat})")
 
-        # Si coincide con nuestros IDs permitidos, o si queremos forzar la captura temporalmente para probar:
-        if event.chat_id in chats_permitidos_ids:
-            chat = await event.get_chat()
-            titulo_chat = getattr(chat, 'title', 'Comunidad/Grupo')
+        # Verificamos si viene de uno de los canales públicos monitoreados
+        if username_chat and any(username_chat.lower() == g.lower() for g in GRUPOS_MONITOR):
             texto = event.text or "[Multimedia/Sin texto]"
-            
             await asyncio.to_thread(enviar_mensaje_sync, f"⚡ **ALERTA [{titulo_chat}]** ⚡\n\n{texto}")
             
+        # O si es de cualquier grupo/comunidad privada donde estés participando activamente
+        elif event.is_group or event.is_channel:
+            texto = event.text or "[Multimedia/Sin texto]"
+            # Si quieres capturar todo lo que hablan en tus grupos actuales para probar:
+            await asyncio.to_thread(enviar_mensaje_sync, f"💬 **GRUPO [{titulo_chat}]** 💬\n\n{texto}")
+
     except Exception as e:
         print(f"Error procesando mensaje: {e}")
 
 async def main():
-    global chats_permitidos_ids
-
+    # 1. Iniciar servidor Flask en segundo plano
     web_thread = Thread(target=run_web)
     web_thread.daemon = True
     web_thread.start()
 
+    # 2. Iniciar cliente de Telegram usando la sesión guardada
     await client.start()
-    print("Cliente conectado. Resolviendo entidades...")
-
-    # Resolver canales públicos
-    for username in GRUPOS_USERNAMES:
-        try:
-            entity = await client.get_entity(username)
-            chats_permitidos_ids.add(entity.id)
-            print(f"Público OK -> {username} ID: {entity.id}")
-        except Exception as e:
-            print(f"Error en {username}: {e}")
-
-    # Resolver comunidad privada por enlace
-    try:
-        entity_privada = await client.get_entity(ENLACE_INVITACION)
-        chats_permitidos_ids.add(entity_privada.id)
-        print(f"¡Comunidad Privada OK! ID: {entity_privada.id}")
-    except Exception as e:
-        print(f"No se pudo resolver el enlace privado directamente: {e}")
-        # Plan B: Buscamos en las diálogos recientes en los que participas
-        async for dialog in client.iter_dialogs(limit=30):
-            if dialog.is_group or dialog.is_channel:
-                # Añadimos los chats activos temporalmente para mapearlos
-                chats_permitidos_ids.add(dialog.id)
-                print(f"Chat añadido desde diálogos: {dialog.name} (ID: {dialog.id})")
-
-    print(f"IDs permitidos finales cargados: {chats_permitidos_ids}")
-    print("¡Escuchando eventos en tiempo real!")
+    print("¡Cliente de Telegram conectado exitosamente y escuchando en vivo!")
+    
     await client.run_until_disconnected()
 
 if __name__ == '__main__':
