@@ -10,7 +10,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "¡Bot ultra-rápido activo!"
+    return "¡Bot inteligente filtrando BDV activo!"
 
 def run_web():
     port = int(os.environ.get("PORT", 10000))
@@ -24,8 +24,14 @@ API_HASH = 'd6c8c66bf42e53f2c0ef54a6d11c6378'
 
 client = TelegramClient('sesion_carlos', API_ID, API_HASH)
 
-# Lista de canales públicos que deseas monitorear por su username
+# Canales públicos prioritarios
 GRUPOS_MONITOR = ['E_positivo', 'SubastasVE', 'subastasBCV']
+
+# Palabras clave obligatorias para que una notificación sea considerada relevante (en minúsculas)
+PALABRAS_CLAVE = [
+    'abrio', 'abrió', 'bdv', 'banco de venezuela', 'comprar', 'compra', 
+    'intervencion', 'intervención', 'mesa', 'tasa', 'divisas', 'disponible'
+]
 
 def enviar_mensaje_sync(texto):
     url = f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage'
@@ -38,37 +44,35 @@ def enviar_mensaje_sync(texto):
 @client.on(events.NewMessage)
 async def procesar_mensaje(event):
     try:
-        # Obtenemos los datos del chat en tiempo real cuando llega un mensaje
         chat = await event.get_chat()
         username_chat = getattr(chat, 'username', None)
         titulo_chat = getattr(chat, 'title', 'Comunidad/Grupo')
-        
-        # Imprimimos en los logs de Render para depurar en vivo
-        print(f"Mensaje entrante de: {titulo_chat} (@{username_chat})")
+        texto = event.text or ""
+        texto_lower = texto.lower()
 
-        # Verificamos si viene de uno de los canales públicos monitoreados
+        # 1. Si viene de los canales oficiales de subastas/alertas, lo mandamos de una vez
         if username_chat and any(username_chat.lower() == g.lower() for g in GRUPOS_MONITOR):
-            texto = event.text or "[Multimedia/Sin texto]"
-            await asyncio.to_thread(enviar_mensaje_sync, f"⚡ **ALERTA [{titulo_chat}]** ⚡\n\n{texto}")
-            
-        # O si es de cualquier grupo/comunidad privada donde estés participando activamente
+            if texto.strip():
+                await asyncio.to_thread(enviar_mensaje_sync, f"⚡ **ALERTA OFICIAL [{titulo_chat}]** ⚡\n\n{texto}")
+
+        # 2. Si viene de la comunidad privada (u otros grupos), aplicamos el filtro inteligente
         elif event.is_group or event.is_channel:
-            texto = event.text or "[Multimedia/Sin texto]"
-            # Si quieres capturar todo lo que hablan en tus grupos actuales para probar:
-            await asyncio.to_thread(enviar_mensaje_sync, f"💬 **GRUPO [{titulo_chat}]** 💬\n\n{texto}")
+            # Verificamos si el mensaje contiene al menos una de las palabras clave del BDV
+            es_relevante = any(palabra in texto_lower for palabra in PALABRAS_CLAVE)
+            
+            if es_relevante:
+                await asyncio.to_thread(enviar_mensaje_sync, f"🚨 **¡POSIBLE APERTURA BDV! [{titulo_chat}]** 🚨\n\n{texto}")
 
     except Exception as e:
         print(f"Error procesando mensaje: {e}")
 
 async def main():
-    # 1. Iniciar servidor Flask en segundo plano
     web_thread = Thread(target=run_web)
     web_thread.daemon = True
     web_thread.start()
 
-    # 2. Iniciar cliente de Telegram usando la sesión guardada
     await client.start()
-    print("¡Cliente de Telegram conectado exitosamente y escuchando en vivo!")
+    print("¡Bot inteligente conectado y filtrando mensajes de ruido!")
     
     await client.run_until_disconnected()
 
